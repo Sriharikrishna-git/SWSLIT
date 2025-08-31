@@ -1,0 +1,51 @@
+ #define BLYNK_TEMPLATE_ID   "TMPLabc123XYZ"
+#define BLYNK_DEVICE_NAME   "SmartBin"
+#define BLYNK_AUTH_TOKEN    "Qwerty12345Abcde67890"
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+char ssid[] = "Your_WiFi_Name";
+char pass[] = "Your_WiFi_Password";
+
+#define TRIG_PIN D5
+#define ECHO_PIN D6
+const int binHeight = 30;
+
+BlynkTimer timer;
+bool alertSent = false;
+
+long getDistance() {
+  digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  return pulseIn(ECHO_PIN, HIGH) * 0.034 / 2;
+}
+
+void sendBinLevel() {
+  long distance = getDistance();
+  if (distance > binHeight) distance = binHeight;
+  int fillPercent = map(binHeight - distance, 0, binHeight, 0, 100);
+
+  Blynk.virtualWrite(V1, fillPercent);
+
+  if (fillPercent >= 80 && !alertSent) {
+    Blynk.logEvent("bin_full", "⚠️ Bin is almost full!");
+    alertSent = true;
+  } else if (fillPercent < 80) {
+    alertSent = false;
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  timer.setInterval(2000L, sendBinLevel);
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
